@@ -1,7 +1,7 @@
 {
   "name": "career-ops",
   "version": "1.11.0",
-  "description": "AI-powered job search pipeline — works with any AI coding CLI (Claude Code, OpenCode, Gemini, Codex, Qwen)",
+  "description": "AI-powered internship search pipeline for paid tech roles — works with any AI coding CLI (Claude Code, OpenCode, Gemini, Codex, Qwen)",
   "private": true,
   "scripts": {
     "doctor": "node doctor.mjs",
@@ -26,11 +26,14 @@
   "keywords": [
     "ai",
     "job-search",
+    "internship-search",
+    "paid-internships",
     "claude-code",
     "opencode",
     "career",
     "career-ops",
     "careerops",
+    "internship-ops",
     "automation"
   ],
   "author": "Santiago Fernández de Valderrama <hi@santifer.io> (https://santifer.io)",

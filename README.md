@@ -1,9 +1,9 @@
-# Career-Ops
+# internship-ops
 
 [English](README.md) | [Español](README.es.md) | [Français](README.fr.md) | [Português (Brasil)](README.pt-BR.md) | [한국어](README.ko-KR.md) | [日本語](README.ja.md) | [简体中文](README.cn.md) | [繁體中文](README.zh-TW.md) | [Українська](README.ua.md) | [Русский](README.ru.md) | [Polski](README.pl.md) | [العربية](README.ar.md)
 
 <p align="center">
-  <a href="https://x.com/santifer"><img src="docs/hero-banner.jpg" alt="Career-Ops Multi-Agent Job Search System" width="800"></a>
+  <a href="https://x.com/santifer"><img src="docs/hero-banner.jpg" alt="internship-ops Multi-Agent Internship Search System" width="800"></a>
 </p>
 
 <p align="center">
@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.producthunt.com/products/santifer-io?utm_source=badge-featured&utm_medium=badge" target="_blank" rel="noopener noreferrer"><img src="docs/press/producthunt.svg" alt="Career-Ops on Claude | Product Hunt" style="width: 206px; height: 54px; vertical-align: middle;" width="206" height="54"/></a>
+  <a href="https://www.producthunt.com/products/santifer-io?utm_source=badge-featured&utm_medium=badge" target="_blank" rel="noopener noreferrer"><img src="docs/press/producthunt.svg" alt="internship-ops on Claude | Product Hunt" style="width: 206px; height: 54px; vertical-align: middle;" width="206" height="54"/></a>
 </p>
 
 <p align="center"><sub>FEATURED IN</sub></p>
@@ -31,7 +31,7 @@
 ---
 
 <p align="center">
-  <img src="docs/demo.gif" alt="Career-Ops Demo" width="800">
+  <img src="docs/demo.gif" alt="internship-ops Demo" width="800">
 </p>
 
 <p align="center"><strong>740+ job listings evaluated · 100+ personalized CVs · 1 dream role landed</strong></p>
@@ -77,19 +77,21 @@
 
 ## What Is This
 
-Career-Ops ([career-ops.org](https://career-ops.org), also known as **careerops**) turns any AI coding CLI into a full job search command center. Instead of manually tracking applications in a spreadsheet, you get an AI-powered pipeline that:
+`internship-ops` is a local customization of the `career-ops` engine for **paid tech internships**. It turns any AI coding CLI into a full internship search command center. Instead of manually checking company career pages every day, you get an AI-powered pipeline that:
 
-- **Evaluates offers** with a structured A-F scoring system (10 weighted dimensions)
-- **Generates tailored PDFs** -- ATS-optimized CVs customized per job description
+- **Evaluates internships** with a structured A-F scoring system (10 weighted dimensions)
+- **Generates tailored PDFs** -- ATS-optimized resumes customized per internship description
 - **Scans portals** automatically (Greenhouse, Ashby, Lever, company pages)
-- **Processes in batch** -- evaluate 10+ offers in parallel with sub-agents
+- **Processes in batch** -- evaluate 10+ internship openings in parallel with sub-agents
 - **Tracks everything** in a single source of truth with integrity checks
 
-> **Important: This is NOT a spray-and-pray tool.** Career-ops is a filter -- it helps you find the few offers worth your time out of hundreds. The system strongly recommends against applying to anything scoring below 4.0/5. Your time is valuable, and so is the recruiter's. Always review before submitting.
+> **Important: This is NOT a spray-and-pray tool.** internship-ops is a filter -- it helps you find the few paid tech internships worth your time out of hundreds. The system is configured to prioritize paid, technical, student-relevant roles and avoid wasting time on weak-fit or unclear listings.
 
-Career-ops is agentic: whichever AI coding CLI you choose navigates career pages with Playwright, evaluates fit by reasoning about your CV vs the job description (not keyword matching), and adapts your resume per listing.
+internship-ops is agentic: whichever AI coding CLI you choose navigates career pages with Playwright, evaluates fit by reasoning about your CV vs the internship description (not keyword matching), and adapts your resume per listing.
 
-> **Heads up: the first evaluations won't be great.** The system doesn't know you yet. Feed it context -- your CV, your career story, your proof points, your preferences, what you're good at, what you want to avoid. The more you nurture it, the better it gets. Think of it as onboarding a new recruiter: the first week they need to learn about you, then they become invaluable.
+> **Heads up: the first evaluations won't be great.** The system doesn't know you yet. Feed it context -- your CV, projects, coursework, hackathons, proof points, preferences, and what kinds of internships you want to avoid. The more you nurture it, the better it gets.
+
+> **Compatibility note:** the underlying commands still use `/career-ops` so the existing engine and tooling keep working unchanged. This repo is branded and configured locally as `internship-ops`.
 
 Built by someone who used it to evaluate 740+ job offers, generate 100+ tailored CVs, and land a Head of Applied AI role. [Read the full case study](https://santifer.io/career-ops-system).
 
@@ -97,13 +99,13 @@ Built by someone who used it to evaluate 740+ job offers, generate 100+ tailored
 
 | Feature                  | Description                                                                                                                              |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| **Auto-Pipeline**        | Paste a URL, get a full evaluation + PDF + tracker entry                                                                                 |
-| **6-Block Evaluation**   | Role summary, CV match, level strategy, comp research, personalization, interview prep (STAR+R) -- plus a Block G posting-legitimacy check that flags scams and ghost jobs |
+| **Auto-Pipeline**        | Paste an internship URL, get a full evaluation + PDF + tracker entry                                                                     |
+| **6-Block Evaluation**   | Role summary, CV match, level strategy, comp research, personalization, interview prep (STAR+R) -- plus a Block G posting-legitimacy check that flags scams, ghost jobs, and unclear paid/unpaid situations |
 | **Interview Story Bank** | Accumulates STAR+Reflection stories across evaluations -- 5-10 master stories that answer any behavioral question                        |
-| **Negotiation Scripts**  | Salary negotiation frameworks, geographic discount pushback, competing offer leverage                                                    |
+| **Negotiation Scripts**  | Internship stipend / paid-vs-unpaid clarity prompts, geographic support questions, and compensation check frameworks                     |
 | **ATS PDF Generation**   | Keyword-injected CVs with Space Grotesk + DM Sans design                                                                                 |
 | **Cover Letter Generator** | Research-backed cover letters with keyword mirroring, four interactive angle prompts (why/problems/approach/tone), draft-in-chat approval gate, and A4 PDF via the same HTML + Playwright pipeline as CVs. Auto-drafts on every evaluation; complete and generate on demand via `/career-ops cover` |
-| **Portal Scanner**       | 45+ companies pre-configured (Anthropic, OpenAI, ElevenLabs, Retool, n8n...) + custom queries across Ashby, Greenhouse, Lever, Wellfound |
+| **Portal Scanner**       | Global tech-company scanning configured for internship-style titles across supported ATS providers and job boards                         |
 | **Batch Processing**     | Parallel evaluation with headless CLI workers (`claude -p` / `opencode run`)                                                             |
 | **Dashboard TUI**        | Terminal UI to browse, filter, and sort your pipeline                                                                                    |
 | **Human-in-the-Loop**    | AI evaluates and recommends, you decide and act. The system never submits an application -- you always have the final call               |
@@ -128,7 +130,7 @@ cd career-ops
 claude   # or gemini / codex / qwen / opencode / agy — open your AI CLI here
 ```
 
-**On first launch, career-ops walks you through setup — your CV, profile and target roles — just by chatting. Nothing to edit by hand.**
+**On first launch, internship-ops walks you through setup — your CV, profile and target internship roles — just by chatting. Nothing to edit by hand.**
 
 <details>
 <summary><b>Prefer to set it up manually? (git clone)</b></summary>
@@ -159,12 +161,14 @@ opencode # Or use OpenCode
 # "Update my profile with this CV I'm pasting"
 
 # 6. Start using
-# Paste a job URL or run /career-ops
+# Paste an internship URL or run /career-ops
 ```
 
 </details>
 
-> **The system is designed to be customized by your AI coding CLI itself.** Modes, archetypes, scoring weights, negotiation scripts -- just ask it to change them. It reads the same files it uses, so it knows exactly what to edit.
+> **The system is designed to be customized by your AI coding CLI itself.** Modes, archetypes, scoring weights, scanner targeting, and student framing can all be adapted directly by editing the same files the system reads.
+
+For the internship-specific local setup in this workspace, read [INTERNSHIP-OPS.md](INTERNSHIP-OPS.md).
 
 See [docs/SETUP.md](docs/SETUP.md) for the full setup guide.
 
@@ -214,12 +218,12 @@ npm run gemini:eval -- "JD text here"
 
 ## Usage
 
-Career-ops is a single slash command with multiple modes:
+The engine still uses the `/career-ops` command namespace, even in this `internship-ops` workspace:
 
 ```
 /career-ops                → Show all available commands
 /career-ops {paste a JD}   → Full auto-pipeline (evaluate + PDF + tracker)
-/career-ops scan           → Scan portals for new offers
+/career-ops scan           → Scan portals for new internship offers
 /career-ops pdf            → Generate ATS-optimized CV
 /career-ops cover          → Cover letter generator (paste JD or /career-ops cover {slug})
 /career-ops batch          → Batch evaluate multiple offers
@@ -232,7 +236,7 @@ Career-ops is a single slash command with multiple modes:
 /career-ops project        → Evaluate a portfolio project
 ```
 
-Or just paste a job URL or description directly -- career-ops auto-detects it and runs the full pipeline.
+Or just paste an internship URL or description directly -- the system auto-detects it and runs the full pipeline.
 
 ## How It Works
 
