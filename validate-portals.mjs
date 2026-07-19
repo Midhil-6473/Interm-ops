@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * validate-portals.mjs — schema/shape validator for portals.yml.
+ * validate-portals.mjs â€” schema/shape validator for portals.yml.
  *
  * Usage:
  *   node validate-portals.mjs
@@ -115,6 +115,11 @@ export async function validatePortalsConfig(config, { providerIds = new Set() } 
       validateKeywordList(config.title_filter.positive, 'title_filter.positive', errors);
       validateKeywordList(config.title_filter.negative, 'title_filter.negative', errors);
       validateKeywordList(config.title_filter.seniority_boost, 'title_filter.seniority_boost', errors);
+      validateKeywordList(config.title_filter.internship_keywords, 'title_filter.internship_keywords', errors);
+      validateKeywordList(config.title_filter.role_keywords, 'title_filter.role_keywords', errors);
+      if (config.title_filter.internship_required !== undefined && typeof config.title_filter.internship_required !== 'boolean') {
+        add(errors, 'title_filter.internship_required', 'internship_required must be true or false when set');
+      }
     }
   }
 
@@ -245,3 +250,4 @@ main().catch((err) => {
   console.error(`validate-portals failed: ${err.message}`);
   process.exit(1);
 });
+

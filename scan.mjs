@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
 /**
- * scan.mjs — Zero-token portal scanner with a plugin-based provider layer.
+ * scan.mjs â€” Zero-token portal scanner with a plugin-based provider layer.
  *
  * Providers live in providers/*.mjs and are loaded at startup. Each provider
  * exports a default object with:
- *   - id: string — matched against `provider:` in portals.yml
- *   - detect(entry): {url}|null — optional auto-detection from careers_url
- *   - fetch(entry, ctx): [{title,url,company,location}] — required
+ *   - id: string â€” matched against `provider:` in portals.yml
+ *   - detect(entry): {url}|null â€” optional auto-detection from careers_url
+ *   - fetch(entry, ctx): [{title,url,company,location}] â€” required
  *
  * Files prefixed with _ are shared helpers (e.g. _http.mjs) and are never
  * loaded as providers. Adding a new HTTP/API source = drop a *.mjs into
@@ -16,9 +16,9 @@
  *
  * A tracked_companies entry can set `provider:` explicitly to bypass
  * URL-based auto-detection. The `transport:` field is reserved for future
- * transports — Phase A only ships the http transport.
+ * transports â€” Phase A only ships the http transport.
  *
- * Zero Claude API tokens — pure HTTP + JSON.
+ * Zero Claude API tokens â€” pure HTTP + JSON.
  *
  * Usage:
  *   node scan.mjs                  # scan all enabled companies
@@ -39,7 +39,7 @@ import { makeHttpCtx } from './providers/_http.mjs';
 
 const parseYaml = yaml.load;
 
-// ── Config ──────────────────────────────────────────────────────────
+// â”€â”€ Config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const PORTALS_PATH = process.env.CAREER_OPS_PORTALS || 'portals.yml';
 const SCAN_HISTORY_PATH = 'data/scan-history.tsv';
@@ -52,7 +52,7 @@ mkdirSync('data', { recursive: true });
 
 const CONCURRENCY = 10;
 
-// ── Provider loading ────────────────────────────────────────────────
+// â”€â”€ Provider loading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function loadProviders(dir) {
   const providers = new Map();
@@ -67,16 +67,16 @@ async function loadProviders(dir) {
     try {
       mod = await import(pathToFileURL(full).href);
     } catch (err) {
-      console.error(`⚠️  ${file}: failed to load — ${err.message}`);
+      console.error(`âš ï¸  ${file}: failed to load â€” ${err.message}`);
       continue;
     }
     const p = mod.default;
     if (!p || typeof p.fetch !== 'function' || !p.id) {
-      console.error(`⚠️  ${file}: skipping — default export must be { id, fetch }`);
+      console.error(`âš ï¸  ${file}: skipping â€” default export must be { id, fetch }`);
       continue;
     }
     if (providers.has(p.id)) {
-      console.error(`⚠️  ${file}: duplicate provider id "${p.id}" — keeping first`);
+      console.error(`âš ï¸  ${file}: duplicate provider id "${p.id}" â€” keeping first`);
       continue;
     }
     providers.set(p.id, p);
@@ -101,7 +101,7 @@ function resolveProvider(entry, providers, { skipIds = [] } = {}) {
       const hit = localParser.detect?.(entry);
       if (hit) return { provider: localParser };
     } catch (err) {
-      console.error(`⚠️  local-parser: detect() threw for "${entry.name}" — ${err.message}`);
+      console.error(`âš ï¸  local-parser: detect() threw for "${entry.name}" â€” ${err.message}`);
     }
   }
 
@@ -111,7 +111,7 @@ function resolveProvider(entry, providers, { skipIds = [] } = {}) {
     try {
       hit = p.detect?.(entry);
     } catch (err) {
-      console.error(`⚠️  ${p.id}: detect() threw for "${entry.name}" — ${err.message}`);
+      console.error(`âš ï¸  ${p.id}: detect() threw for "${entry.name}" â€” ${err.message}`);
       continue;
     }
     if (hit) return { provider: p };
@@ -119,36 +119,50 @@ function resolveProvider(entry, providers, { skipIds = [] } = {}) {
   return null;
 }
 
-// ── Title filter ────────────────────────────────────────────────────
+// â”€â”€ Title filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function buildTitleFilter(titleFilter) {
-  const positive = (titleFilter?.positive || []).map(k => k.toLowerCase());
-  const negative = (titleFilter?.negative || []).map(k => k.toLowerCase());
+  const normalize = (value) => (Array.isArray(value) ? value : value ? [value] : [])
+    .filter(k => typeof k === 'string')
+    .map(k => k.toLowerCase().trim())
+    .filter(Boolean);
+
+  const positive = normalize(titleFilter?.positive);
+  const negative = normalize(titleFilter?.negative);
+  const internshipKeywords = normalize(titleFilter?.internship_keywords);
+  const roleKeywords = normalize(titleFilter?.role_keywords);
+  const internshipRequired = titleFilter?.internship_required === true;
 
   return (title) => {
-    const lower = title.toLowerCase();
-    const hasPositive = positive.length === 0 || positive.some(k => lower.includes(k));
+    const lower = String(title || '').toLowerCase();
     const hasNegative = negative.some(k => lower.includes(k));
-    return hasPositive && !hasNegative;
+    if (hasNegative) return false;
+
+    if (internshipRequired) {
+      const hasInternshipSignal = internshipKeywords.length === 0 || internshipKeywords.some(k => lower.includes(k));
+      const hasRoleSignal = roleKeywords.length === 0 || roleKeywords.some(k => lower.includes(k));
+      return hasInternshipSignal && hasRoleSignal;
+    }
+
+    return positive.length === 0 || positive.some(k => lower.includes(k));
   };
 }
-
-// ── Location filter ─────────────────────────────────────────────────
+// ── Location filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Optional. If `location_filter` is absent from portals.yml, all locations pass.
 // Semantics (case-insensitive substring, in this order):
-//   - Empty / whitespace-only / non-string location → pass (don't penalize
+//   - Empty / whitespace-only / non-string location â†’ pass (don't penalize
 //     missing or malformed provider data)
-//   - `always_allow` matches → pass (takes precedence over `block` — lets a
+//   - `always_allow` matches â†’ pass (takes precedence over `block` â€” lets a
 //     multi-location string like "Remote, Belgium or France" through because
 //     the home region is an option, even though "france" is blocked)
-//   - `block` matches → reject
-//   - `allow` empty → pass (already cleared block)
-//   - `allow` non-empty → must match at least one keyword
+//   - `block` matches â†’ reject
+//   - `allow` empty â†’ pass (already cleared block)
+//   - `allow` non-empty â†’ must match at least one keyword
 
 // Normalize a keyword list from portals.yml: tolerates a bare string
-// (wrapped to a 1-item array), null/undefined (→ []), and non-string
+// (wrapped to a 1-item array), null/undefined (â†’ []), and non-string
 // entries (filtered out). Survivors are lowercased, trimmed, and any
-// resulting empty strings are dropped — an empty keyword would otherwise
+// resulting empty strings are dropped â€” an empty keyword would otherwise
 // match every location via String.includes(''), silently bypassing the
 // other tiers.
 function normalizeKeywordList(value) {
@@ -176,7 +190,7 @@ export function buildLocationFilter(locationFilter) {
   };
 }
 
-// ── Salary filter ───────────────────────────────────────────────────
+// â”€â”€ Salary filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Optional. If `salary_filter` is absent from portals.yml, all salaries pass.
 // Semantics:
 //   - min/max are annual compensation filters (use annualized values)
@@ -189,17 +203,17 @@ export function buildLocationFilter(locationFilter) {
 export function buildSalaryFilter(salaryFilter) {
   if (!salaryFilter) return () => true;
 
-  // Coerce and validate bounds — malformed YAML must not silently mis-filter
+  // Coerce and validate bounds â€” malformed YAML must not silently mis-filter
   const min = Number(salaryFilter.min ?? 0);
   const max = Number(salaryFilter.max ?? 0);
   const filterCurrency = (salaryFilter.currency || '').trim().toUpperCase();
 
   if (!Number.isFinite(min) || !Number.isFinite(max) || min < 0 || max < 0) {
-    console.error('Warning: salary_filter.min/max must be non-negative numbers — salary filter disabled');
+    console.error('Warning: salary_filter.min/max must be non-negative numbers â€” salary filter disabled');
     return () => true;
   }
   if (max > 0 && min > max) {
-    console.error('Warning: salary_filter.min cannot exceed salary_filter.max — salary filter disabled');
+    console.error('Warning: salary_filter.min cannot exceed salary_filter.max â€” salary filter disabled');
     return () => true;
   }
 
@@ -237,14 +251,14 @@ export function buildSalaryFilter(salaryFilter) {
   };
 }
 
-// ── URL rediscovery (--rediscover-404) ──────────────────────────────
+// â”€â”€ URL rediscovery (--rediscover-404) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // When a tracked company's job URL returns 404/410, the role may have just
 // moved to a new URL (Workday/Greenhouse rotate URLs without closing roles).
 // These helpers back an opt-in search-and-reverify fallback before giving up.
 
 // extractCareersUrlDomain returns the hostname of a company's careers_url, or
 // null when it's missing/unparseable. The presence of a domain is what gates
-// the fallback — broad-discovery offers without a careers_url stay ineligible.
+// the fallback â€” broad-discovery offers without a careers_url stay ineligible.
 export function extractCareersUrlDomain(careersUrl) {
   if (!careersUrl) return null;
   try {
@@ -296,7 +310,7 @@ const REDISCOVER_TIMEOUT_MS = 10_000;
 
 // searchForNewUrl runs one site-scoped search for a moved tracked role and
 // returns a same-domain URL if found, else null. Every failure path returns
-// null — the fallback must never throw into the verify loop. Leaves the page on
+// null â€” the fallback must never throw into the verify loop. Leaves the page on
 // a blank document so the next checkUrlLiveness call starts clean.
 async function searchForNewUrl(page, offer) {
   const domain = offer.careersUrlDomain;
@@ -319,12 +333,12 @@ async function searchForNewUrl(page, offer) {
     try {
       await page.goto('about:blank');
     } catch {
-      /* ignore — best-effort cleanup */
+      /* ignore â€” best-effort cleanup */
     }
   }
 }
 
-// ── Dedup ───────────────────────────────────────────────────────────
+// â”€â”€ Dedup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const PERMANENT_SCAN_HISTORY_STATUSES = new Set([
   'skipped_invalid_url',
@@ -371,7 +385,7 @@ export function loadSeenUrls(policy = {}) {
     }
   }
 
-  // pipeline.md — extract URLs from checkbox lines
+  // pipeline.md â€” extract URLs from checkbox lines
   if (existsSync(PIPELINE_PATH)) {
     const text = readFileSync(PIPELINE_PATH, 'utf-8');
     for (const match of text.matchAll(/- \[[ x]\] (https?:\/\/\S+)/g)) {
@@ -379,7 +393,7 @@ export function loadSeenUrls(policy = {}) {
     }
   }
 
-  // applications.md — extract URLs from report links and any inline URLs
+  // applications.md â€” extract URLs from report links and any inline URLs
   if (existsSync(APPLICATIONS_PATH)) {
     const text = readFileSync(APPLICATIONS_PATH, 'utf-8');
     for (const match of text.matchAll(/https?:\/\/[^\s|)]+/g)) {
@@ -406,7 +420,7 @@ function loadSeenCompanyRoles() {
   return seen;
 }
 
-// ── Pipeline writer ─────────────────────────────────────────────────
+// â”€â”€ Pipeline writer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function appendToPipeline(offers) {
   if (offers.length === 0) return;
@@ -417,7 +431,7 @@ export function appendToPipeline(offers) {
   const marker = '## Pendientes';
   const idx = text.indexOf(marker);
   if (idx === -1) {
-    // No Pendientes section — append at end before Procesadas
+    // No Pendientes section â€” append at end before Procesadas
     const procIdx = text.indexOf('## Procesadas');
     const insertAt = procIdx === -1 ? text.length : procIdx;
     const block = `\n${marker}\n\n` + offers.map(o =>
@@ -441,7 +455,7 @@ export function appendToPipeline(offers) {
 
 export function appendToScanHistory(offers, date, status = 'added') {
   // Ensure file + header exist. Location appended as 7th column for non-breaking
-  // backward compat — older scan-history.tsv files with 6 columns still parse fine
+  // backward compat â€” older scan-history.tsv files with 6 columns still parse fine
   // since loadSeenUrls only reads column 0. `status` is parameterized so callers
   // can record verify outcomes (`skipped_expired`, etc.) without the legacy
   // `(expired)` suffix in `source`.
@@ -456,7 +470,7 @@ export function appendToScanHistory(offers, date, status = 'added') {
   appendFileSync(SCAN_HISTORY_PATH, lines, 'utf-8');
 }
 
-// ── Parallel fetch with concurrency limit ───────────────────────────
+// â”€â”€ Parallel fetch with concurrency limit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function parallelFetch(tasks, limit) {
   const results = [];
@@ -474,7 +488,7 @@ async function parallelFetch(tasks, limit) {
   return results;
 }
 
-// ── Main ────────────────────────────────────────────────────────────
+// â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function verifyOffers(offers, { headedFallback = false, throttleBaseMs = 0, rediscover = false } = {}) {
   // Dynamic imports keep the default zero-token path free of Playwright startup
@@ -506,12 +520,12 @@ async function verifyOffers(offers, { headedFallback = false, throttleBaseMs = 0
   }
 
   // Three permanent buckets + one transient passthrough:
-  //   verified  → active pages and transient nav errors (retry next scan)
-  //   expired   → classifier-confirmed dead postings (HTTP 4xx, redirect markers,
+  //   verified  â†’ active pages and transient nav errors (retry next scan)
+  //   expired   â†’ classifier-confirmed dead postings (HTTP 4xx, redirect markers,
   //               body patterns, listing pages, insufficient content)
-  //   dropped   → page loaded but classifier saw no Apply control. --verify is an
+  //   dropped   â†’ page loaded but classifier saw no Apply control. --verify is an
   //               opt-in stricter filter; keeping these defeats the purpose.
-  //   invalid   → up-front URL guard rejections (malformed / non-http / private)
+  //   invalid   â†’ up-front URL guard rejections (malformed / non-http / private)
   const verified = [];
   const expired = [];
   const dropped = [];
@@ -523,14 +537,14 @@ async function verifyOffers(offers, { headedFallback = false, throttleBaseMs = 0
 
   try {
     const page = await newLivenessPage(browser);
-    // Sequential — project rule: never Playwright in parallel
+    // Sequential â€” project rule: never Playwright in parallel
     for (let i = 0; i < offers.length; i++) {
       const offer = offers[i];
       const { result, code, reason } = headed
         ? await checkUrlLivenessWithFallback(page, offer.url, { getHeadedPage })
         : await checkUrlLiveness(page, offer.url);
       if (result === 'expired') {
-        // 404/410 on a tracked company may just be a moved role — run one
+        // 404/410 on a tracked company may just be a moved role â€” run one
         // search + re-verify before giving up (opt-in via --rediscover-404).
         // Only http_gone (HTTP 404/410) qualifies; soft-expiry signals
         // (redirect/body/listing) are real closures, not URL moves.
@@ -544,33 +558,33 @@ async function verifyOffers(offers, { headedFallback = false, throttleBaseMs = 0
               ? await checkUrlLivenessWithFallback(page, newUrl, { getHeadedPage })
               : await checkUrlLiveness(page, newUrl);
             // Require a *confirmed* live page before migrating. A transient
-            // 'uncertain' (timeout/DNS/5xx) must not commit an unverified URL —
+            // 'uncertain' (timeout/DNS/5xx) must not commit an unverified URL â€”
             // fall through to expired (the original 404/410 is a real closure).
             if (recheck.result === 'active') {
               migrated.push({ ...offer, url: newUrl, previousUrl: offer.url });
-              console.log(`  🔄 migrated  ${offer.company} | ${offer.title} → ${newUrl}`);
+              console.log(`  ðŸ”„ migrated  ${offer.company} | ${offer.title} â†’ ${newUrl}`);
               continue;
             }
           }
         }
         expired.push({ ...offer, reason });
-        console.log(`  ❌ expired   ${offer.company} | ${offer.title} (${reason})`);
+        console.log(`  âŒ expired   ${offer.company} | ${offer.title} (${reason})`);
       } else if (result === 'uncertain' && GUARD_CODES.has(code)) {
-        // Guard failures are permanent (not transient like a timeout) — record them
+        // Guard failures are permanent (not transient like a timeout) â€” record them
         // separately so they don't end up in pipeline.md but DO appear in scan-history
         // with a precise status, dedup-blocking them on subsequent scans.
         invalid.push({ ...offer, code, reason });
-        console.log(`  ⛔ invalid   ${offer.company} | ${offer.title} (${reason})`);
+        console.log(`  â›” invalid   ${offer.company} | ${offer.title} (${reason})`);
       } else if (result === 'uncertain' && code === 'no_apply_control') {
         // Page loaded but classifier could not find an Apply control. Treat like
-        // expired for routing — drop from pipeline AND record in scan-history so
+        // expired for routing â€” drop from pipeline AND record in scan-history so
         // we don't burn a verify cycle on the same URL next scan.
         dropped.push({ ...offer, reason });
-        console.log(`  ⚠️ no-apply  ${offer.company} | ${offer.title} (${reason})`);
+        console.log(`  âš ï¸ no-apply  ${offer.company} | ${offer.title} (${reason})`);
       } else {
-        // 'active' or 'uncertain' due to navigation_error (transient — retry next scan)
+        // 'active' or 'uncertain' due to navigation_error (transient â€” retry next scan)
         verified.push(offer);
-        const icon = result === 'active' ? '✅' : '⚠️';
+        const icon = result === 'active' ? 'âœ…' : 'âš ï¸';
         console.log(`  ${icon} ${result.padEnd(9)} ${offer.company} | ${offer.title}`);
       }
 
@@ -602,12 +616,12 @@ async function main() {
   const dryRun = args.includes('--dry-run');
   const verify = args.includes('--verify');
   // Opt-in: on an anti-bot challenge (e.g. pracuj.pl Cloudflare wall), retry the
-  // URL in a headed browser. Off by default — headed Chromium needs a display, so
+  // URL in a headed browser. Off by default â€” headed Chromium needs a display, so
   // scheduled/unattended scans should not rely on it.
   const headedFallback = args.includes('--headed-fallback');
   // --throttle or --throttle=<ms>: jittered gap between --verify checks to stay
   // under rate-based WAF limits (pracuj.pl flags the session after a few rapid
-  // hits). Default base 5000ms. Off by default — most ATS feeds don't need it.
+  // hits). Default base 5000ms. Off by default â€” most ATS feeds don't need it.
   const throttleArg = args.find((a) => a === '--throttle' || a.startsWith('--throttle='));
   const throttleBaseMs = throttleArg ? (Number(throttleArg.split('=')[1]) || 5000) : 0;
   // --rediscover-404: when a tracked company's URL 404/410s, search for the
@@ -661,7 +675,7 @@ async function main() {
       if (!entry || typeof entry !== 'object') continue;
       if (entry.enabled === false) continue;
       if (typeof entry.name !== 'string' || !entry.name.trim()) {
-        console.error(`⚠️  Skipping entry — missing or non-string 'name' field: ${JSON.stringify(entry)}`);
+        console.error(`âš ï¸  Skipping entry â€” missing or non-string 'name' field: ${JSON.stringify(entry)}`);
         continue;
       }
       if (filterCompany && !entry.name.toLowerCase().includes(filterCompany)) continue;
@@ -697,9 +711,9 @@ async function main() {
   const parts = [`${companyCount} companies`];
   if (boardCount > 0) parts.push(`${boardCount} job boards`);
   parts.push(`${localParserCount} local parser`);
-  parts.push(`${skippedCount} skipped — no provider matched`);
+  parts.push(`${skippedCount} skipped - no provider matched`);
   console.log(`Scanning ${parts.join('; ')} via providers`);
-  if (dryRun) console.log('(dry run — no files will be written)\n');
+  if (dryRun) console.log('(dry run - no files will be written)\n');
 
   // 4. Load dedup sets
   const historyPolicy = scanHistoryPolicy(config);
@@ -769,7 +783,7 @@ async function main() {
         seenCompanyRoles.add(key);
         // Tag with the company's careers domain so verify can offer a 404/410
         // rediscovery fallback. A null domain (no careers_url) marks the offer
-        // as broad-discovery — ineligible for the fallback, per the issue scope.
+        // as broad-discovery â€” ineligible for the fallback, per the issue scope.
         const careersUrlDomain = extractCareersUrlDomain(company.careers_url);
         newOffers.push({
           ...job,
@@ -785,7 +799,7 @@ async function main() {
 
   await parallelFetch(tasks, CONCURRENCY);
 
-  // 5.5. Optional liveness verification — drop expired and guard-rejected postings
+  // 5.5. Optional liveness verification â€” drop expired and guard-rejected postings
   let verifiedOffers = newOffers;
   let expiredOffers = [];
   let droppedOffers = [];
@@ -810,7 +824,7 @@ async function main() {
     appendToPipeline(verifiedOffers);
     appendToScanHistory(verifiedOffers, date);
   }
-  // Expired postings — plus the old URLs of migrated offers — are recorded as
+  // Expired postings â€” plus the old URLs of migrated offers â€” are recorded as
   // skipped_expired so subsequent scans dedup-skip the dead URLs.
   const expiredForHistory = [
     ...expiredOffers,
@@ -841,9 +855,9 @@ async function main() {
   }
 
   // 7. Print summary
-  console.log(`\n${'━'.repeat(45)}`);
-  console.log(`Portal Scan — ${date}`);
-  console.log(`${'━'.repeat(45)}`);
+  console.log(`\n${'-'.repeat(45)}`);
+  console.log(`Portal Scan - ${date}`);
+  console.log(`${'-'.repeat(45)}`);
   const summaryCompanies = targets.filter(t => !t._isBoard).length;
   const summaryBoards = targets.filter(t => t._isBoard).length;
   console.log(`Companies scanned:     ${summaryCompanies}`);
@@ -867,18 +881,18 @@ async function main() {
   if (agentHandoff.length > 0) {
     console.log(`Agent/WebSearch handoff: ${agentHandoff.length} compan${agentHandoff.length === 1 ? 'y' : 'ies'} not handled by zero-token providers`);
     for (const item of agentHandoff.slice(0, 25)) {
-      const hint = item.query ? ` — ${item.query}` : '';
-      console.log(`  • ${item.company} (${item.method})${hint}`);
+      const hint = item.query ? ` - ${item.query}` : '';
+      console.log(`  - ${item.company} (${item.method})${hint}`);
     }
     if (agentHandoff.length > 25) {
-      console.log(`  … ${agentHandoff.length - 25} more omitted; narrow with --company or inspect portals.yml`);
+      console.log(`  ... ${agentHandoff.length - 25} more omitted; narrow with --company or inspect portals.yml`);
     }
   }
 
   if (errors.length > 0) {
-    console.log(`\nErrors (${errors.length}):`);
+    console.log(`\nProvider warnings (${errors.length}, non-fatal):`);
     for (const e of errors) {
-      console.log(`  ✗ ${e.company}: ${e.error}`);
+      console.log(`  [warn] ${e.company}: ${e.error}`);
     }
   }
 
@@ -888,14 +902,13 @@ async function main() {
       console.log(`  + ${o.company} | ${o.title} | ${o.location || 'N/A'}`);
     }
     if (dryRun) {
-      console.log('\n(dry run — run without --dry-run to save results)');
+      console.log('\n(dry run - run without --dry-run to save results)');
     } else {
       console.log(`\nResults saved to ${PIPELINE_PATH} and ${SCAN_HISTORY_PATH}`);
     }
   }
 
-  console.log(`\n→ Run /interm-ops pipeline to evaluate new offers.`);
-  console.log('→ Share results and get help: https://discord.gg/8pRpHETxa4');
+  console.log(`\n-> Run /interm-ops pipeline to evaluate new offers.`);
 }
 
 // Only run main() when invoked directly (`node scan.mjs`), not when imported by tests.
@@ -906,3 +919,4 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
     process.exit(1);
   });
 }
+
