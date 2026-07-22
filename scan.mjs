@@ -42,6 +42,7 @@ const parseYaml = yaml.load;
 // â”€â”€ Config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const PORTALS_PATH = process.env.CAREER_OPS_PORTALS || 'portals.yml';
+const PROFILE_PATH = process.env.CAREER_OPS_PROFILE || 'config/profile.yml';
 const SCAN_HISTORY_PATH = 'data/scan-history.tsv';
 const PIPELINE_PATH = 'data/pipeline.md';
 const APPLICATIONS_PATH = 'data/applications.md';
@@ -174,11 +175,59 @@ function normalizeKeywordList(value) {
     .filter(Boolean);
 }
 
-export function buildLocationFilter(locationFilter) {
+function profileLocationKeywords(profile = {}) {
+  const location = profile.location && typeof profile.location === 'object' ? profile.location : {};
+  const candidate = profile.candidate && typeof profile.candidate === 'object' ? profile.candidate : {};
+  return normalizeKeywordList([
+    candidate.location,
+    location.city,
+    location.state,
+    location.region,
+    location.country,
+    location.timezone,
+    ...(Array.isArray(location.preferred_locations) ? location.preferred_locations : []),
+    ...(Array.isArray(location.nearby_locations) ? location.nearby_locations : []),
+  ]);
+}
+
+function expandLocationFilter(locationFilter = {}, profile = {}) {
+  const includeRemote = locationFilter.include_remote !== false;
+  const remoteKeywords = includeRemote
+    ? normalizeKeywordList(locationFilter.remote_keywords || ['remote', 'hybrid', 'worldwide', 'global'])
+    : [];
+
+  if (locationFilter.use_profile_location === true) {
+    const profileKeywords = profileLocationKeywords(profile);
+    return {
+      always_allow: [
+        ...profileKeywords,
+        ...remoteKeywords,
+        ...normalizeKeywordList(locationFilter.extra_allow),
+        ...normalizeKeywordList(locationFilter.always_allow),
+      ],
+      allow: [
+        ...profileKeywords,
+        ...remoteKeywords,
+        ...normalizeKeywordList(locationFilter.extra_allow),
+        ...normalizeKeywordList(locationFilter.allow),
+      ],
+      block: normalizeKeywordList(locationFilter.block),
+    };
+  }
+
+  return {
+    always_allow: normalizeKeywordList(locationFilter.always_allow),
+    allow: normalizeKeywordList(locationFilter.allow),
+    block: normalizeKeywordList(locationFilter.block),
+  };
+}
+
+export function buildLocationFilter(locationFilter, profile = {}) {
   if (!locationFilter) return () => true;
-  const alwaysAllow = normalizeKeywordList(locationFilter.always_allow);
-  const allow = normalizeKeywordList(locationFilter.allow);
-  const block = normalizeKeywordList(locationFilter.block);
+  const expanded = expandLocationFilter(locationFilter, profile);
+  const alwaysAllow = expanded.always_allow;
+  const allow = expanded.allow;
+  const block = expanded.block;
 
   return (location) => {
     if (typeof location !== 'string' || location.trim() === '') return true;
@@ -651,10 +700,19 @@ async function main() {
     process.exit(1);
   }
   const config = rawConfig && typeof rawConfig === 'object' ? rawConfig : {};
+  let profile = {};
+  if (existsSync(PROFILE_PATH)) {
+    try {
+      const parsedProfile = parseYaml(readFileSync(PROFILE_PATH, 'utf-8'));
+      profile = parsedProfile && typeof parsedProfile === 'object' ? parsedProfile : {};
+    } catch (err) {
+      console.error(`Warning: failed to parse ${PROFILE_PATH}: ${err.message}`);
+    }
+  }
   const companies = Array.isArray(config.tracked_companies) ? config.tracked_companies : [];
   const boards = Array.isArray(config.job_boards) ? config.job_boards : [];
   const titleFilter = buildTitleFilter(config.title_filter);
-  const locationFilter = buildLocationFilter(config.location_filter);
+  const locationFilter = buildLocationFilter(config.location_filter, profile);
   const salaryFilter = buildSalaryFilter(config.salary_filter);
 
   // 3. Resolve a provider for each enabled company / board

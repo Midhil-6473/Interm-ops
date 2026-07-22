@@ -130,6 +130,14 @@ export async function validatePortalsConfig(config, { providerIds = new Set() } 
       validateKeywordList(config.location_filter.always_allow, 'location_filter.always_allow', errors);
       validateKeywordList(config.location_filter.allow, 'location_filter.allow', errors);
       validateKeywordList(config.location_filter.block, 'location_filter.block', errors);
+      validateKeywordList(config.location_filter.extra_allow, 'location_filter.extra_allow', errors);
+      validateKeywordList(config.location_filter.remote_keywords, 'location_filter.remote_keywords', errors);
+      if (config.location_filter.use_profile_location !== undefined && typeof config.location_filter.use_profile_location !== 'boolean') {
+        add(errors, 'location_filter.use_profile_location', 'use_profile_location must be true or false when set');
+      }
+      if (config.location_filter.include_remote !== undefined && typeof config.location_filter.include_remote !== 'boolean') {
+        add(errors, 'location_filter.include_remote', 'include_remote must be true or false when set');
+      }
     }
   }
 
