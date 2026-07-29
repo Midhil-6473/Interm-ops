@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # interm-ops
 
 [English](README.md) | [Español](README.es.md) | [Français](README.fr.md) | [Português (Brasil)](README.pt-BR.md) | [한국어](README.ko-KR.md) | [日本語](README.ja.md) | [简体中文](README.cn.md) | [繁體中文](README.zh-TW.md) | [Українська](README.ua.md) | [Русский](README.ru.md) | [Polski](README.pl.md) | [العربية](README.ar.md)
@@ -79,7 +78,7 @@ Built by someone who used it to evaluate 740+ job offers, generate 100+ tailored
 | **Negotiation Scripts**  | Internship stipend / paid-vs-unpaid clarity prompts, geographic support questions, and compensation check frameworks                     |
 | **ATS PDF Generation**   | Keyword-injected resumes with Space Grotesk + DM Sans design                                                                                 |
 | **Cover Letter Generator** | Research-backed cover letters with keyword mirroring, four interactive angle prompts (why/problems/approach/tone), draft-in-chat approval gate, and A4 PDF via the same HTML + Playwright pipeline as resumes. Auto-drafts on every evaluation; complete and generate on demand via `/interm-ops cover` |
-| **Portal Scanner**       | Global tech-company scanning configured for internship-style titles across supported ATS providers and job boards                         |
+| **Portal Scanner**       | Location-aware internship scanning across supported ATS providers and enabled internship boards                                   |
 | **Batch Processing**     | Parallel evaluation with headless CLI workers (`claude -p` / `opencode run`)                                                             |
 | **Dashboard TUI**        | Terminal UI to browse, filter, and sort your pipeline                                                                                    |
 | **Human-in-the-Loop**    | AI evaluates and recommends, you decide and act. The system never submits an application -- you always have the final call               |
@@ -165,7 +164,7 @@ gemini
 # 3. Use the unified /interm-ops command with subcommands:
 /interm-ops "Senior AI Engineer at Anthropic..."
 /interm-ops pipeline
-/interm-ops scan
+/interm-ops scan           -> Scan portals for internships using the user's location
 /interm-ops pdf
 /interm-ops tracker
 ```
@@ -197,10 +196,10 @@ The engine still uses the `/interm-ops` command namespace, even in this `interm-
 ```
 /interm-ops                → Show all available commands
 /interm-ops {paste a JD}   → Full auto-pipeline (evaluate + PDF + tracker)
-/interm-ops scan           → Scan portals for new internship offers
+/interm-ops scan           -> Scan portals for internships using the user's location
 /interm-ops pdf            → Generate ATS-optimized resume
 /interm-ops cover          → Cover letter generator (paste JD or /interm-ops cover {slug})
-/interm-ops batch          → Batch evaluate multiple offers
+/interm-ops batch          → Batch evaluate multiple internships
 /interm-ops tracker        → View application status
 /interm-ops apply          → Fill application forms with AI
 /interm-ops pipeline       → Process pending URLs
@@ -212,10 +211,26 @@ The engine still uses the `/interm-ops` command namespace, even in this `interm-
 
 Or just paste an internship URL or description directly -- the system auto-detects it and runs the full pipeline.
 
+### Location-aware internship scanning
+
+The scanner asks for the user's location when run from an interactive terminal:
+
+    npm run scan
+    What is your location? (city and country, or country): Bangalore, India
+
+The answer is used for that scan only. Results are limited to the user's country, configured nearby countries, and remote internships allowed by the location filter. For automation or scripts, pass the location explicitly:
+
+    npm run scan -- --location "Bangalore, India"
+    npm run scan -- --location Singapore --dry-run
+
+The location can also be passed as --location=India. If standard input is not interactive and no parameter is supplied, the scanner falls back to config/profile.yml.
+
+Each scan writes data/internship-scan-report.md, including the company, internship role, stipend, location, work mode (Remote, Hybrid, Onsite, or Not specified), match status, and source URL. A missing stipend means the provider did not publish stipend data. Provider errors are reported as non-fatal warnings.
+
 ## How It Works
 
 ```
-You paste a job URL or description
+You paste an internship URL or description
         │
         ▼
 ┌──────────────────┐
@@ -247,15 +262,15 @@ The scanner comes with **45+ companies** ready to scan and **19 search queries**
 **Automation:** n8n, Zapier, Make.com
 **European:** Factorial, Attio, Tinybird, Clarity AI, Travelperk
 
-**Job boards searched:** Ashby, Greenhouse, Lever, Wellfound, Workable, RemoteFront
+**Supported sources:** Greenhouse, Ashby, Lever, company career feeds, and enabled remote/global internship boards. The active sources are controlled by portals.yml.
 
-By default `node scan.mjs` (a.k.a. `npm run scan`) trusts what each ATS feed returns. Some companies leave stale postings in their public API even after the role is closed, so those expired entries can leak into `pipeline.md`. Pass `--verify` to launch Playwright after the API pass and drop expired postings before they hit the pipeline:
+By default `node scan.mjs` (a.k.a. `npm run scan`) trusts what each ATS feed returns. Some companies leave stale internship postings in their public API even after the role is closed, so those expired entries can leak into `pipeline.md`. Pass `--verify` to launch Playwright after the API pass and drop expired postings before they hit the pipeline:
 
 ```bash
 node scan.mjs --verify          # zero-token discovery + Playwright liveness check
 ```
 
-The verification is sequential and only runs against new offers (after dedup), so the cost stays bounded.
+The verification is sequential and only runs against new internships (after dedup), so the cost stays bounded.
 
 ## Dashboard TUI
 
@@ -279,7 +294,8 @@ interm-ops/
 ├── resume.md                        # Your resume (create this)
 ├── article-digest.md            # Your proof points (optional)
 ├── config/
-│   └── profile.example.yml      # Template for your profile
+│   ├── profile.example.yml      # Template for your profile
+│   └── profile.yml             # Your local profile and location settings
 ├── modes/                       # 15 skill modes
 │   ├── _shared.md               # Shared context (customize this)
 │   ├── oferta.md                # Single evaluation
@@ -297,6 +313,7 @@ interm-ops/
 │   └── batch-runner.sh          # Orchestrator script
 ├── dashboard/                   # Go TUI pipeline viewer
 ├── data/                        # Your tracking data (gitignored)
+│   └── internship-scan-report.md # Latest detailed location-aware scan report
 ├── reports/                     # Evaluation reports (gitignored)
 ├── output/                      # Generated PDFs (gitignored)
 ├── fonts/                       # Space Grotesk + DM Sans
@@ -351,5 +368,3 @@ endorsement.
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/pokkunurimidhil)
 [![Email](https://img.shields.io/badge/Email-EA4335?style=for-the-badge&logo=gmail&logoColor=white)](mailto:manipokkunuri@gmail.com)
-=======
->>>>>>> 33f85a1 (modified)
