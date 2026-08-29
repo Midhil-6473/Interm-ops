@@ -1,3 +1,16 @@
+
+## User inputs: location and optional resume
+
+Before fetching portals, ask for `What is your location?` unless `--location` is supplied. Normalize the answer to a country, city, preferred locations, and nearby countries. Apply this scope before deduplication and before writing the report; never show out-of-scope postings as detailed matches.
+
+Ask for an optional resume path unless `--resume` is supplied. Accept `.md`, `.markdown`, `.txt`, and `.docx`. If no resume is supplied, continue with a location-only scan. When supplied, verify it can be read, extract its text, and include a resume match percentage and status for each location-eligible internship in `data/internship-scan-report.md`.
+
+CLI examples:
+```bash
+npm run scan -- --location "United States" --resume "C:\Users\you\Documents\resume.docx"
+npm run scan -- --location "India"
+```
+
 # Mode: scan — Portal Scanner (Job Discovery)
 
 Scans configured job portals, filters by title relevance, and adds new offers to the pipeline for subsequent evaluation.

@@ -218,12 +218,21 @@ The scanner asks for the user's location when run from an interactive terminal:
     npm run scan
     What is your location? (city and country, or country): Bangalore, India
 
-The answer is used for that scan only. Results are limited to the user's country, configured nearby countries, and remote internships allowed by the location filter. For automation or scripts, pass the location explicitly:
+The answer is used for that scan only. The location filter runs before deduplication and report generation, so detailed results contain only internships in the user's country, configured nearby countries, or allowed remote locations. For automation or scripts, pass the location explicitly:
 
     npm run scan -- --location "Bangalore, India"
     npm run scan -- --location Singapore --dry-run
 
 The location can also be passed as --location=India. If standard input is not interactive and no parameter is supplied, the scanner falls back to config/profile.yml.
+### Resume-aware internship matching
+
+Resume input is optional. Without it, the scanner finds internships using the requested location scope. With a resume, it reads `.md`, `.markdown`, `.txt`, or `.docx`, checks that the file is readable, and adds a resume-match percentage and status to the detailed report.
+
+```bash
+npm run scan -- --location "India" --resume "C:\Users\you\Documents\resume.docx"
+# Or use the default resume.md in the project root
+npm run scan -- --location "India" --resume resume.md
+```
 
 Each scan writes data/internship-scan-report.md, including the company, internship role, stipend, location, work mode (Remote, Hybrid, Onsite, or Not specified), match status, and source URL. A missing stipend means the provider did not publish stipend data. Provider errors are reported as non-fatal warnings.
 

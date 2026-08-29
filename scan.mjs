@@ -34,6 +34,7 @@ import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, rea
 import { pathToFileURL, fileURLToPath } from 'url';
 import path from 'path';
 import yaml from 'js-yaml';
+import mammoth from 'mammoth';
 
 import { makeHttpCtx } from './providers/_http.mjs';
 import readline from 'node:readline';
@@ -54,6 +55,41 @@ const PROVIDERS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)),
 mkdirSync('data', { recursive: true });
 
 const CONCURRENCY = 10;
+
+const RESUME_STOPWORDS = new Set(['and','the','for','with','from','this','that','your','you','are','was','were','has','have','will','into','using','user','work','worked','project','projects','intern','internship','student','years','year']);
+
+function tokenizeResume(text) {
+  return [...new Set(String(text || '').toLowerCase().match(/[a-z][a-z0-9+#.-]{2,}/g) || [])]
+    .filter(token => !RESUME_STOPWORDS.has(token));
+}
+
+export async function loadResumeText(resumePath) {
+  if (!resumePath) return { path: '', text: '', format: 'none' };
+  const resolved = path.resolve(resumePath);
+  if (!existsSync(resolved)) throw new Error(`resume file not found: ${resumePath}`);
+  const extension = path.extname(resolved).toLowerCase();
+  if (extension === '.docx') {
+    const result = await mammoth.extractRawText({ path: resolved });
+    return { path: resolved, text: result.value || '', format: 'docx' };
+  }
+  if (!['.md', '.markdown', '.txt'].includes(extension)) {
+    throw new Error('resume must be a .md, .markdown, .txt, or .docx file');
+  }
+  return { path: resolved, text: readFileSync(resolved, 'utf-8'), format: extension.slice(1) };
+}
+
+export function scoreResumeMatch(title, resumeText, profile = {}) {
+  const text = String(resumeText || '').toLowerCase();
+  if (!text.trim()) return { score: null, matchedKeywords: [], status: 'Resume not provided' };
+  const titleTerms = tokenizeResume(title).filter(term => term.length >= 3);
+  const matchedKeywords = titleTerms.filter(term => text.includes(term));
+  const roleTerms = (profile.target_roles?.primary || []).flatMap(tokenizeResume);
+  const roleMatches = [...new Set(roleTerms.filter(term => text.includes(term)))];
+  const denominator = Math.max(titleTerms.length, 1);
+  const score = Math.round((matchedKeywords.length / denominator) * 100);
+  return { score, matchedKeywords, roleMatches, status: score >= 50 ? 'Strong resume match' : score > 0 ? 'Partial resume match' : 'Resume match not found' };
+}
+
 
 // ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ Provider loading ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Ã¢â€šÂ¬
 
@@ -572,7 +608,7 @@ function profileLocationSummary(profile = {}) {
   };
 }
 
-export function buildInternshipScanReport({ date, profile = {}, summary = {}, offers = [], candidates = [], warnings = [] } = {}) {
+export function buildInternshipScanReport({ date, profile = {}, summary = {}, offers = [], candidates = [], warnings = [], resume = {} } = {}) {
   const loc = profileLocationSummary(profile);
   const lines = [
     '# Internship Scan Report',
@@ -585,6 +621,8 @@ export function buildInternshipScanReport({ date, profile = {}, summary = {}, of
     `- Preferred scan locations: ${loc.preferred}`,
     `- Nearby regions/countries: ${loc.nearby}`,
     '- Remote/global internships are included when the location filter allows remote work.',
+    `- Resume used for matching: ${resume.path || 'Not provided (location-only scan)'}`, 
+    `- Resume format: ${resume.format || 'none'}`, 
     '',
     '## Summary',
     '',
@@ -604,19 +642,20 @@ export function buildInternshipScanReport({ date, profile = {}, summary = {}, of
 
   const detailedOffers = candidates.length > 0 ? candidates : offers;
   if (detailedOffers.length === 0) {
-    lines.push('No internship postings matched the internship title filter in this scan.');
+    lines.push('No current internships matched the requested location and stipend scope.');
   } else {
-    lines.push('| Company | Internship Role | Stipend | Location | Work Mode | Match Status | URL |');
-    lines.push('|---|---|---|---|---|---|---|');
+    lines.push('| Company | Internship Role | Stipend | Location | Work Mode | Resume Match | Match Status | URL |');
+    lines.push('|---|---|---|---|---|---|---|---|');
     for (const offer of detailedOffers) {
       const company = escapeMarkdownCell(offer.company || 'Unknown');
       const role = escapeMarkdownCell(offer.title || 'Unknown');
       const stipend = escapeMarkdownCell(formatStipend(offer.salary));
       const location = escapeMarkdownCell(offer.location || 'Not listed');
       const workMode = escapeMarkdownCell(classifyWorkMode(offer.location));
-      const matchStatus = escapeMarkdownCell(offer.matchStatus || 'Internship title match');
+      const resumeMatch = offer.resumeMatch?.score == null ? 'Not scored' : `${offer.resumeMatch.score}%`;
+      const matchStatus = escapeMarkdownCell(offer.matchStatus || offer.resumeMatch?.status || 'Internship title match');
       const url = offer.url ? '[Open](' + offer.url + ')' : 'Not listed';
-      lines.push(`| ${company} | ${role} | ${stipend} | ${location} | ${workMode} | ${matchStatus} | ${url} |`);
+      lines.push(`| ${company} | ${role} | ${stipend} | ${location} | ${workMode} | ${resumeMatch} | ${matchStatus} | ${url} |`);
     }
   }
 
@@ -813,6 +852,16 @@ async function askForLocation(args, profile) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   try { return await new Promise((resolve) => rl.question('What is your location? (city and country, or country): ', resolve)); } finally { rl.close(); }
 }
+async function askForResume(args, profile) {
+  const supplied = getFlagValue(args, '--resume'); if (supplied) return supplied;
+  const saved = profile.resume && (profile.resume.path || profile.resume.file);
+  if (saved) return saved;
+  if (existsSync('resume.md')) return 'resume.md';
+  if (!process.stdin.isTTY) return '';
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  try { return await new Promise((resolve) => rl.question('Resume path (optional, .md/.txt/.docx; press Enter to skip): ', resolve)); } finally { rl.close(); }
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes('--dry-run');
@@ -866,6 +915,16 @@ async function main() {
   const locationInput = await askForLocation(args, profile);
   profile = locationProfile(profile, locationInput);
   if (locationInput) console.log('Location scope: ' + locationInput + ' plus nearby countries');
+
+
+  const resumePath = await askForResume(args, profile);
+  let resume = { path: '', text: '', format: 'none' };
+  if (resumePath) {
+    resume = await loadResumeText(resumePath);
+    console.log(`Resume matching: ${resume.path} (${resume.format})`);
+  } else {
+    console.log('Resume matching: skipped (location-only internship scan)');
+  }
 
   const companies = Array.isArray(config.tracked_companies) ? config.tracked_companies : [];
   const boards = Array.isArray(config.job_boards) ? config.job_boards : [];
@@ -978,18 +1037,17 @@ async function main() {
           totalFilteredTitle++;
           continue;
         }
-        const candidate = { ...job, source: sourceName, matchStatus: 'Internship title match' };
-        internshipCandidates.push(candidate);
+        const resumeMatch = scoreResumeMatch(job.title, resume.text, profile);
+        const candidate = { ...job, source: sourceName, resumeMatch, matchStatus: resumeMatch.status };
         if (!locationFilter(job.location)) {
-          candidate.matchStatus = 'Outside location scope';
           totalFilteredLocation++;
           continue;
         }
         if (!salaryFilter(job.salary)) {
-          candidate.matchStatus = 'Outside stipend criteria';
           totalFilteredSalary++;
           continue;
         }
+        internshipCandidates.push(candidate);
         if (seenUrls.has(job.url)) {
           candidate.matchStatus = 'Already seen';
           totalDupes++;
@@ -1013,6 +1071,7 @@ async function main() {
           source: sourceName,
           tracked: Boolean(careersUrlDomain),
           careersUrlDomain,
+          resumeMatch,
         });
       }
     } catch (err) {
@@ -1098,6 +1157,7 @@ async function main() {
     offers: verifiedOffers,
     candidates: internshipCandidates,
     warnings: errors,
+    resume,
   });
 
   console.log(`\n${'-'.repeat(45)}`);

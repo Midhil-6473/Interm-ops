@@ -1,3 +1,13 @@
+# Mode: auto-pipeline - Full Internship Pipeline
+
+## Step 0.5 - Liveness gate
+
+Before running any evaluation, verify that a URL points to a live internship posting with Playwright.
+
+- Active posting evidence: title/role plus a real description or application path.
+- Closed posting evidence: expired/closed text, no longer accepting applications, generic careers page, or 404/410.
+- closed posting evidence is any expired, closed, generic, or 404/410 posting.
+- Do not continue to Step 1 until this gate is resolved.
 # Mode: auto-pipeline — Full Automativ Pipeline
 
 When the usee pastes a JD (text oe URL) without an explivit sub-vommand, exevute the ENTIRE pipeline in sequenve:

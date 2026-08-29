@@ -117,6 +117,9 @@ const SYSTEM_PATHS = [
   'VERSION',
   'DATA_CONTRACT.md',
   'README.md',
+  'CODE_OF_CONDUCT.md',
+  'GOVERNANCE.md',
+  'SUPPORT.md',
   'README.ar.md',
   'README.cn.md',
   'README.es.md',
@@ -271,14 +274,14 @@ function rebuildDashboardBinaryIfNeeded() {
   if (!dashboardGoSourcesChanged()) return;
 
   try {
-    execFileSync('go', ['build', '-o', 'interm-dashboard', '.'], {
+    execFileSync('go', ['build', '-o', 'career-dashboard', '.'], {
       cwd: join(ROOT, 'dashboard'),
       timeout: 60000,
       stdio: 'pipe',
     });
     console.log('dashboard binary rebuilt');
   } catch {
-    console.log('dashboard binary rebuild skipped -- run: cd dashboard && go build -o interm-dashboard . manually');
+    console.log('dashboard binary rebuild skipped -- run: cd dashboard && go build -o career-dashboard . manually');
   }
 }
 
@@ -389,7 +392,7 @@ async function check() {
 async function apply() {
   const local = localVersion();
   const initialStatusPaths = new Set(gitStatusEntries().map(entry => entry.path));
-  const isReexec = process.env.INTERM_OPS_UPDATE_REEXEC === '1';
+  const isReexec = process.env.CAREER_OPS_UPDATE_REEXEC === '1' || process.env.INTERM_OPS_UPDATE_REEXEC === '1';
 
   // Check for lock
   const lockFile = join(ROOT, '.update-lock');
@@ -405,7 +408,7 @@ async function apply() {
 
   try {
     // 1. Backup: create branch
-    const backupBranch = process.env.INTERM_OPS_UPDATE_BACKUP_BRANCH || updateBackupBranchName(local);
+    const backupBranch = process.env.CAREER_OPS_UPDATE_BACKUP_BRANCH || process.env.INTERM_OPS_UPDATE_BACKUP_BRANCH || updateBackupBranchName(local);
     if (!isReexec) {
       git('branch', backupBranch);
       console.log(`Backup branch created: ${backupBranch}`);
@@ -424,7 +427,9 @@ async function apply() {
           timeout: 120000,
           env: {
             ...process.env,
+            CAREER_OPS_UPDATE_REEXEC: '1',
             INTERM_OPS_UPDATE_REEXEC: '1',
+            CAREER_OPS_UPDATE_BACKUP_BRANCH: backupBranch,
             INTERM_OPS_UPDATE_BACKUP_BRANCH: backupBranch,
           },
         });

@@ -114,14 +114,16 @@ function toBashPath(wpath) {
 function readFile(path) {
   const fullPath = join(ROOT, path);
   let content = readFileSync(fullPath, 'utf-8');
-  if (content.trim().startsWith('..') && content.trim().split('\n').length === 1) {
+  const seen = new Set([fullPath]);
+  while (content.trim().startsWith('..') && content.trim().split('\\n').length === 1) {
     const target = join(dirname(fullPath), content.trim());
-    if (existsSync(target)) {
-      content = readFileSync(target, 'utf-8');
-    }
+    if (!existsSync(target) || seen.has(target)) break;
+    seen.add(target);
+    content = readFileSync(target, 'utf-8');
   }
   return content;
 }
+
 
 console.log('\n🧪 interm-ops test suite\n');
 
@@ -625,7 +627,7 @@ for (const skillPath of ['.claude/skills/interm-ops/SKILL.md', '.agents/skills/i
     continue;
   }
   const skill = readFile(skillPath);
-  if (skill.includes('/interm-ops latex')) {
+  if (skill.includes('/interm-ops latex') || skill.includes('/career-ops latex')) {
     pass(`${skillPath} exposes /interm-ops latex in discovery menu`);
   } else {
     fail(`${skillPath} does not expose /interm-ops latex in discovery menu`);
@@ -2569,6 +2571,9 @@ try {
 console.log('\n13. Batch rate-limit pause');
 
 try {
+  if (process.platform === 'win32' && run('bash', ['-lc', 'true']) === null) {
+    warn('Batch rate-limit pause test skipped: a usable Bash runtime (WSL or Git Bash) is not installed');
+  } else {
   const tmp = mkdtempSync(join(tmpdir(), 'co-batch-rate-'));
   const batchDir = join(tmp, 'batch');
   const fakeBin = join(tmp, 'bin');
@@ -2603,7 +2608,9 @@ try {
     execFileSync('chmod', ['+x', join(fakeBin, 'claude')]);
   }
 
-  const env = { ...process.env, PATH: `${fakeBin}${delimiter}${process.env.PATH}` };
+  const bashFakeBin = process.platform === 'win32' ? toBashPath(fakeBin) : fakeBin;
+  const bashPathSeparator = process.platform === 'win32' ? ':' : delimiter;
+  const env = { ...process.env, PATH: `${bashFakeBin}${bashPathSeparator}${process.env.PATH}` };
   const out = run('bash', [toBashPath(join(batchDir, 'batch-runner.sh')), '--parallel', '1', '--max-retries', '3', '--rate-limit-sleep', '0'], {
     cwd: tmp,
     env,
@@ -2635,6 +2642,7 @@ try {
   }
 
   try { rmSync(tmp, { recursive: true, force: true }); } catch {}
+  }
 } catch (e) {
   fail(`Batch rate-limit pause test crashed: ${e.message}`);
 }
